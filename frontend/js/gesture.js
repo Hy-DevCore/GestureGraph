@@ -19,6 +19,7 @@ class GestureController {
     this.easingFactor = options.easingFactor || 0.1;
     this.deadZone = options.deadZone || 0.005;
     this.panScale = options.panScale || 800;
+    this.debugMode = options.debugMode || false;
 
     this.fistThreshold = options.fistThreshold || 0.06;
     this.openThreshold = options.openThreshold || 0.12;
@@ -207,6 +208,14 @@ class GestureController {
   }
 
   _drawLandmarks(results) {
+    if (!this.debugMode) {
+      this.canvasCtx.save();
+      this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+      this.canvasCtx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);
+      this.canvasCtx.restore();
+      return;
+    }
+
     this.canvasCtx.save();
     this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
     this.canvasCtx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);

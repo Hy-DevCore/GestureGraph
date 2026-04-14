@@ -8,7 +8,13 @@ class GestureGraphApp {
     this.isDragging = false;
     this.hoverNode = null;
 
-    this.API_BASE = window.location.origin + '/api';
+    const hostname = window.location.hostname;
+    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '80') {
+      this.API_BASE = 'http://localhost:8000/api';
+    } else {
+      this.API_BASE = window.location.origin + '/api';
+    }
   }
 
   async init() {
@@ -244,9 +250,14 @@ class GestureGraphApp {
   _panCamera(dx, dy) {
     if (!this.graph) return;
     const camera = this.graph.camera();
-    camera.position.x -= dx;
-    camera.position.y += dy;
-    camera.lookAt(camera.position.x, camera.position.y, 0);
+    const newPosX = camera.position.x - dx;
+    const newPosY = camera.position.y + dy;
+    const currentLookAt = camera.up ? { x: camera.up.x, y: camera.up.y, z: camera.up.z } : { x: 0, y: 0, z: 0 };
+    this.graph.cameraPosition(
+      { x: newPosX, y: newPosY, z: camera.position.z },
+      { x: newPosX, y: newPosY, z: 0 },
+      80
+    );
   }
 
   _handleSelect(palmCenter) {
@@ -264,8 +275,38 @@ class GestureGraphApp {
   }
 
   _findNodeAtScreen(x, y) {
-    if (this.hoverNode) return this.hoverNode;
-    return null;
+    if (!this.graph || !this.graphData) return null;
+
+    const camera = this.graph.camera();
+    const container = document.getElementById('graph-container');
+    const rect = container.getBoundingClientRect();
+
+    let closestNode = null;
+    let minDistance = Infinity;
+    const thresholdDistance = 50;
+
+    for (const node of this.graphData.nodes) {
+      const nodeX = node.x || 0;
+      const nodeY = node.y || 0;
+      const nodeZ = node.z || 0;
+
+      const worldPos = new THREE.Vector3(nodeX, nodeY, nodeZ);
+      const screenPos = worldPos.project(camera);
+
+      const screenX = (screenPos.x + 1) / 2 * rect.width;
+      const screenY = (1 - screenPos.y) / 2 * rect.height;
+
+      if (screenPos.z > 1 || screenPos.z < -1) continue;
+
+      const distance = Math.sqrt(Math.pow(screenX - x, 2) + Math.pow(screenY - y, 2));
+
+      if (distance < minDistance && distance < thresholdDistance) {
+        minDistance = distance;
+        closestNode = node;
+      }
+    }
+
+    return closestNode;
   }
 
   _getGestureLabel(state) {
